@@ -1,0 +1,41 @@
+  {
+    "rules": {
+      ".read": false,
+      ".write": false,
+      "pins": {
+        "$race": {
+          ".read": false,
+          ".write": "auth != null && !data.exists() && newData.isString() && newData.val().length >= 4"
+        }
+      },
+      "admins": {
+        "$race": {
+          "$uid": {
+            ".read": "auth != null && auth.uid === $uid",
+            ".write": "auth != null && auth.uid === $uid && newData.val() === root.child('pins').child($race).val()"
+          }
+        }
+      },
+      "races": {
+        "$race": {
+          ".read": "auth != null",
+          "settings": {
+            ".write": "auth != null && (root.child('pins').child($race).exists() && root.child('admins').child($race).child(auth.uid).val() === root.child('pins').child($race).val())"
+          },
+          "runners": {
+            "$uid": {
+              ".write": "auth != null && (auth.uid === $uid || (root.child('pins').child($race).exists() && root.child('admins').child($race).child(auth.uid).val() === root.child('pins').child($race).val()))",
+              "name": { ".validate": "newData.isString() && newData.val().length <= 24" },
+              "loc": { ".validate": "newData.isString() && newData.val().length <= 300" }
+            }
+          },
+          "cheers": {
+            "$cid": {
+              ".write": "auth != null && ((!data.exists() && newData.child('uid').val() === auth.uid) || (!newData.exists() && (data.child('uid').val() === auth.uid || (root.child('pins').child($race).exists() && root.child('admins').child($race).child(auth.uid).val() === root.child('pins').child($race).val()))))",
+              ".validate": "!newData.exists() || (newData.child('text').isString() && newData.child('text').val().length <= 160 && newData.child('t').isNumber())"
+            }
+          }
+        }
+      }
+    }
+  }

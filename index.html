@@ -1,0 +1,754 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#9fd6ff">
+<title>Lakefront Turkey Trot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@500;700;800;900&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root {
+  --bg: #cfeaff; --surface: #ffffff; --ink: #1d1433; --muted: #5e5476; --edge: #1d1433;
+  --sky: #9fd6ff; --lake: #2b7fd4; --lake-soft: #bfe1ff; --pumpkin: #ff7a1a; --cran: #d7263d;
+  --mustard: #ffc93c; --leaf: #2f9e62; --on-accent: #1d1433;
+  --display: "Lilita One", "Arial Rounded MT Bold", "Trebuchet MS", sans-serif;
+  --body: "Nunito", ui-rounded, system-ui, -apple-system, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root {
+  --bg: #171230; --surface: #261f47; --ink: #fff6e5; --muted: #c2b8de; --edge: #07040f;
+  --sky: #2a2160; --lake: #4d9ff0; --lake-soft: #1f3a66; --pumpkin: #ff8a33; --cran: #ff5a6e;
+  --mustard: #ffd25c; --leaf: #4cc584; color-scheme: dark; } }
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.5; font-weight: 500; padding-bottom: env(safe-area-inset-bottom, 0px); }
+.wrap { max-width: 1100px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--display); font-weight: 400; margin: 0; text-wrap: balance; line-height: 1; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--pumpkin); outline-offset: 3px; }
+.label { font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+[hidden] { display: none !important; }
+
+.hero { padding-top: calc(env(safe-area-inset-top, 0px) + 24px); padding-bottom: 66px; position: relative; overflow: hidden; background: linear-gradient(var(--sky), var(--bg)); }
+.waves { position: absolute; left: 0; right: 0; bottom: 0; height: 64px; width: 100%; }
+.hero .wrap { position: relative; z-index: 1; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 20px 28px; align-items: center; }
+@media (max-width: 700px) { .hero .wrap { grid-template-columns: 1fr; } }
+.sticker { display: inline-block; background: var(--mustard); color: var(--on-accent); border: 3px solid var(--edge); border-radius: 999px; padding: 4px 14px; font-weight: 900; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; transform: rotate(-2deg); box-shadow: 3px 3px 0 var(--edge); max-width: 100%; overflow-wrap: anywhere; }
+.title { font-size: clamp(52px, 11vw, 112px); color: var(--pumpkin); -webkit-text-stroke: 3px var(--edge); paint-order: stroke fill; text-shadow: 5px 5px 0 var(--edge); margin-top: 14px; }
+.title span { color: var(--cran); display: inline-block; transform: rotate(-3deg); }
+.sub { font-weight: 800; font-size: 18px; margin: 10px 0 0; }
+.clockcard { background: var(--surface); border: 3px solid var(--edge); border-radius: 22px; box-shadow: 6px 6px 0 var(--edge); padding: 16px 22px; text-align: center; transform: rotate(1.5deg); min-width: 0; }
+.clock { font-family: var(--display); font-size: clamp(48px, 10vw, 84px); line-height: 1; font-variant-numeric: tabular-nums; }
+.clocksub { font-weight: 700; color: var(--muted); font-size: 14px; }
+.mascot { width: 92px; height: 92px; flex: none; animation: bob 1.1s ease-in-out infinite alternate; transform-origin: 50% 100%; }
+@keyframes bob { from { transform: rotate(-6deg); } to { transform: rotate(6deg) translateY(-6px); } }
+
+main { padding-block: 8px 64px; }
+.board { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 26px; align-items: start; }
+@media (max-width: 880px) { .board { grid-template-columns: 1fr; } }
+.col { display: grid; gap: 26px; min-width: 0; }
+.card { background: var(--surface); border: 3px solid var(--edge); border-radius: 22px; box-shadow: 6px 6px 0 var(--edge); padding: 20px; min-width: 0; }
+.card h2 { font-size: 30px; }
+.cardhead { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.tag { font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: .06em; padding: 3px 10px; border-radius: 999px; border: 2px solid var(--edge); background: var(--lake-soft); white-space: nowrap; }
+.tag.live { background: var(--pumpkin); color: var(--on-accent); }
+.tag.done { background: var(--leaf); color: #fff; }
+.tag.gps { background: var(--leaf); color: #fff; }
+.tag.stale { background: var(--mustard); color: var(--on-accent); }
+
+#map { height: 420px; border: 3px solid var(--edge); border-radius: 16px; overflow: hidden; z-index: 0; }
+@media (max-width: 520px) { #map { height: 340px; } }
+.pin { width: 34px; height: 34px; border-radius: 50%; border: 3px solid #1d1433; display: grid; place-items: center; font-family: "Lilita One", sans-serif; color: #fff; font-size: 17px; text-shadow: 0 0 3px #1d1433, 0 0 2px #1d1433; box-shadow: 2px 2px 0 #1d1433; }
+.pin.stale { opacity: .55; filter: grayscale(.5); }
+.note { font-size: 13px; color: var(--muted); margin: 12px 0 0; }
+
+.pack { display: grid; gap: 14px; }
+.runner { border: 3px solid var(--edge); border-radius: 18px; padding: 14px; display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 4px 14px; align-items: center; background: var(--bg); }
+.runner svg.turkey { width: 64px; height: 64px; grid-row: span 2; }
+.runner .nm { font-family: var(--display); font-size: 26px; line-height: 1.05; overflow-wrap: anywhere; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.runner .bib { font-family: var(--body); font-weight: 900; font-size: 13px; background: var(--surface); border: 2px solid var(--edge); border-radius: 6px; padding: 0 7px; }
+.runner .nums { display: flex; flex-wrap: wrap; gap: 4px 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.runner .nums b { font-family: var(--display); font-weight: 400; font-size: 22px; }
+.runner .nums small { color: var(--muted); font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; margin-left: 3px; }
+.runner .extra { grid-column: 1 / -1; display: grid; gap: 8px; margin-top: 6px; }
+.track { height: 14px; border: 2.5px solid var(--edge); border-radius: 999px; background: var(--surface); overflow: hidden; }
+.track i { display: block; height: 100%; width: 0; transition: width .8s ease; }
+.splits { display: flex; flex-wrap: wrap; gap: 6px; }
+.splits span { font-size: 13px; font-weight: 800; background: var(--surface); border: 2px solid var(--edge); border-radius: 999px; padding: 1px 9px; font-variant-numeric: tabular-nums; }
+.empty { color: var(--muted); font-weight: 700; margin: 0; }
+
+.btn { border: 3px solid var(--edge); border-radius: 14px; padding: 10px 18px; font-weight: 900; cursor: pointer; background: var(--pumpkin); color: var(--on-accent); box-shadow: 3px 3px 0 var(--edge); transition: transform .08s, box-shadow .08s; text-decoration: none; display: inline-block; text-align: center; }
+.btn:active:not(:disabled) { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--edge); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn.alt { background: var(--mustard); }
+.btn.plain { background: var(--surface); color: var(--ink); }
+.btn.go { background: var(--leaf); color: #fff; }
+.btn.big { font-family: var(--display); font-weight: 400; font-size: 28px; padding: 14px 18px; }
+.ctrls { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
+.field { display: grid; gap: 4px; min-width: 0; }
+input[type=text], input[type=url], input[type=password], input[type=datetime-local], select, textarea { width: 100%; min-width: 0; border: 2.5px solid var(--edge); background: var(--bg); border-radius: 12px; padding: 9px 12px; font-weight: 700; }
+textarea { resize: vertical; min-height: 72px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.row > .grow { flex: 1 1 170px; min-width: 0; }
+.status { font-size: 14px; font-weight: 700; color: var(--muted); min-height: 1.4em; }
+.status.err { color: var(--cran); }
+details summary { cursor: pointer; font-weight: 900; margin-top: 14px; }
+.colors { display: flex; gap: 8px; flex-wrap: wrap; }
+.colors button { width: 34px; height: 34px; border-radius: 50%; border: 3px solid var(--edge); cursor: pointer; }
+.colors button[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--surface), 0 0 0 6px var(--edge); }
+.linkbtn { background: none; border: 0; padding: 0; color: var(--muted); text-decoration: underline; cursor: pointer; font-size: 13px; font-weight: 800; }
+.mine { background: var(--mustard); color: var(--on-accent); }
+.mine .label, .mine .status { color: var(--on-accent); opacity: .85; }
+.mine input, .mine select { background: #fff8e1; color: #1d1433; }
+.gpsbox { border: 3px dashed var(--edge); border-radius: 16px; padding: 12px; margin-top: 14px; display: grid; gap: 8px; }
+.sharebox { display: flex; gap: 8px; flex-wrap: wrap; }
+.sharebox input { flex: 1 1 220px; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { border: 2.5px solid var(--edge); background: var(--lake-soft); border-radius: 999px; padding: 5px 12px; font-size: 14px; font-weight: 800; cursor: pointer; }
+.chip:hover { background: var(--mustard); color: var(--on-accent); }
+.feed { list-style: none; margin: 18px 0 0; padding: 0; display: grid; gap: 12px; }
+.feed li { display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: 10px; align-items: start; }
+.feed .blip { width: 14px; height: 14px; border-radius: 50%; border: 2.5px solid var(--edge); background: var(--pumpkin); margin-top: 12px; }
+.bubble { background: var(--bg); border: 2.5px solid var(--edge); border-radius: 4px 18px 18px 18px; padding: 8px 12px; min-width: 0; }
+.feed li.fresh .bubble { animation: pop .5s ease-out; }
+@keyframes pop { 0% { transform: scale(.85); } 70% { transform: scale(1.04); } 100% { transform: scale(1); } }
+.bubble .msg { font-weight: 800; font-size: 16px; overflow-wrap: anywhere; white-space: pre-wrap; }
+.bubble .who { font-size: 13px; color: var(--muted); font-weight: 700; display: flex; gap: 10px; flex-wrap: wrap; }
+.count { font-family: var(--display); font-size: 22px; color: var(--cran); }
+
+.toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 170%) rotate(-1deg); width: min(520px, calc(100% - 32px)); background: var(--mustard); color: var(--on-accent); border: 3px solid var(--edge); box-shadow: 5px 5px 0 var(--edge); padding: 12px 16px; border-radius: 18px; transition: transform .35s cubic-bezier(.2,1.4,.4,1); z-index: 2000; }
+.toast.show { transform: translate(-50%, 0) rotate(-1deg); }
+.toast .t1 { font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; }
+.toast .t2 { font-family: var(--display); font-size: 22px; line-height: 1.15; overflow-wrap: anywhere; }
+.banner { background: var(--surface); border: 3px solid var(--edge); border-radius: 14px; padding: 10px 14px; font-weight: 800; margin-bottom: 20px; }
+#confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3000; }
+.landing { max-width: 620px; margin: 0 auto; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div style="min-width:0">
+      <span class="sticker" id="raceName">Milwaukee lakefront · Thanksgiving 2026</span>
+      <h1 class="title">Turkey <span>Trot!</span></h1>
+      <p class="sub" id="heroSub">Follow the flock and send them cheers.</p>
+    </div>
+    <div class="row" style="justify-content:center; gap:14px; flex-wrap:nowrap" id="clockRow">
+      <svg class="mascot" id="mascot" viewBox="0 0 100 100" aria-hidden="true"></svg>
+      <div class="clockcard">
+        <div class="label" id="clockLabel">Starts in</div>
+        <div class="clock" id="clock">--:--</div>
+        <div class="clocksub" id="clockSub"></div>
+      </div>
+    </div>
+  </div>
+  <svg class="waves" viewBox="0 0 1200 64" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M0 30 Q 75 8 150 30 T 300 30 T 450 30 T 600 30 T 750 30 T 900 30 T 1050 30 T 1200 30 V64 H0 Z" fill="var(--lake-soft)"/>
+    <path d="M0 44 Q 75 24 150 44 T 300 44 T 450 44 T 600 44 T 750 44 T 900 44 T 1050 44 T 1200 44 V64 H0 Z" fill="var(--bg)"/>
+  </svg>
+</header>
+
+<main class="wrap">
+  <div class="banner" id="banner" hidden></div>
+
+  <!-- Landing: no race link yet -->
+  <section id="landing" class="landing" hidden>
+    <div class="card">
+      <div class="cardhead"><h2>Set up your race</h2></div>
+      <p style="margin-top:0; font-weight:700">This makes a private race page. You'll get a link to send to your runners and family.</p>
+      <form id="createForm" class="grid2">
+        <div class="field" style="grid-column:1/-1"><label class="label" for="nName">Race name</label><input type="text" id="nName" maxlength="60" value="Milwaukee lakefront · Thanksgiving 2026"></div>
+        <div class="field"><label class="label" for="nDist">Distance</label>
+          <select id="nDist"><option value="3.107">5K (3.1 mi)</option><option value="4">4 miles</option><option value="5">5 miles</option><option value="6.214">10K (6.2 mi)</option><option value="1">1 mile</option></select></div>
+        <div class="field"><label class="label" for="nStart">Start time</label><input type="datetime-local" id="nStart" value="2026-11-26T08:00"></div>
+        <div class="field" style="grid-column:1/-1"><label class="label" for="nPin">Organizer PIN (4+ characters)</label><input type="password" id="nPin" minlength="4" maxlength="20" required autocomplete="new-password">
+          <span style="font-size:13px; font-weight:700; color:var(--muted)">You'll use this to unlock race settings on another device, like your phone tomorrow. Write it down.</span></div>
+        <div class="row" style="grid-column:1/-1"><button class="btn" type="submit">Create the race</button></div>
+      </form>
+      <div class="status" id="createStatus"></div>
+    </div>
+    <div class="card" id="recent" hidden style="margin-top:26px">
+      <div class="cardhead"><h2>Your race</h2></div>
+      <a class="btn alt" id="recentLink" href="#">Open my race</a>
+    </div>
+  </section>
+
+  <!-- Race page -->
+  <div id="racePage" hidden>
+    <div class="board">
+      <div class="col">
+        <section class="card" aria-labelledby="mapTitle">
+          <div class="cardhead"><h2 id="mapTitle">Where's the flock?</h2>
+            <div class="row"><span class="tag" id="mapTag">Before the start</span><button class="btn plain" type="button" id="fitBtn" style="padding:4px 12px; font-size:14px">Show everyone</button></div></div>
+          <div id="map" role="region" aria-label="Live map of runners"></div>
+          <p class="note">Dots move when a runner shares GPS with the page open. A faded dot means that runner's last spot is more than 2 minutes old.</p>
+        </section>
+
+        <section class="card" aria-labelledby="packTitle">
+          <div class="cardhead"><h2 id="packTitle">The flock</h2><span class="label" id="distLabel">5K</span></div>
+          <div class="pack" id="pack"><p class="empty">No runners yet. Runners, open this page on your phone and tap "I'm running".</p></div>
+        </section>
+      </div>
+
+      <div class="col">
+        <section class="card mine" id="joinCard" hidden aria-labelledby="joinTitle">
+          <div class="cardhead"><h2 id="joinTitle">Running?</h2></div>
+          <p style="margin:0 0 12px; font-weight:700">Do this on the phone you'll carry. You'll get Start and Mile buttons and can share your live location.</p>
+          <form id="joinForm" class="row">
+            <div class="field grow"><label class="label" for="jName">Your name</label><input type="text" id="jName" maxlength="24" required></div>
+            <button class="btn" type="submit" style="align-self:end">I'm running</button>
+          </form>
+          <div class="status" id="joinStatus"></div>
+        </section>
+
+        <section class="card mine" id="myCard" hidden aria-labelledby="myTitle">
+          <div class="cardhead"><h2 id="myTitle">Your race</h2><span class="label">On this phone</span></div>
+          <div class="ctrls">
+            <button class="btn big" id="bStart" type="button">Start</button>
+            <button class="btn big" id="bMile" type="button">Mile 1</button>
+            <button class="btn big" id="bFinish" type="button">Finish</button>
+            <button class="btn big plain" id="bUndo" type="button">Undo</button>
+          </div>
+          <div class="status" id="myStatus" style="margin-top:8px"></div>
+          <div class="gpsbox">
+            <div class="row" style="justify-content:space-between"><strong>Live location</strong><span class="tag" id="gpsTag">Off</span></div>
+            <button class="btn go" id="bGps" type="button">Share my location</button>
+            <span style="font-size:13px; font-weight:700" id="gpsHelp">Keep this page open with the screen on while you run. Miles log on their own from GPS, and you can still tap them.</span>
+          </div>
+          <details>
+            <summary>My details</summary>
+            <form id="myForm" class="grid2" style="margin-top:12px">
+              <div class="field"><label class="label" for="mName">Name</label><input type="text" id="mName" maxlength="24"></div>
+              <div class="field"><label class="label" for="mBib">Bib number</label><input type="text" id="mBib" maxlength="8" inputmode="numeric"></div>
+              <div class="field"><label class="label" for="mPace">Goal pace per mile</label><input type="text" id="mPace" maxlength="5" placeholder="9:30"></div>
+              <div class="field"><label class="label" for="mSpot">How to spot me</label><input type="text" id="mSpot" maxlength="60" placeholder="Turkey hat, orange socks"></div>
+              <div class="field" style="grid-column:1/-1"><span class="label">My color</span><div class="colors" id="mColors"></div></div>
+              <div class="row" style="grid-column:1/-1"><button class="btn" type="submit">Save my details</button><button class="btn plain" type="button" id="bLeave">Leave the flock</button></div>
+            </form>
+          </details>
+        </section>
+
+        <section class="card" aria-labelledby="shareTitle">
+          <div class="cardhead"><h2 id="shareTitle">Invite the family</h2></div>
+          <div class="sharebox"><input type="text" id="shareUrl" readonly aria-label="Race link"><button class="btn alt" type="button" id="copyBtn">Copy link</button></div>
+          <p class="note">Anyone with this link can watch, cheer, and join as a runner.</p>
+        </section>
+
+        <section class="card" id="ownerCard" aria-labelledby="ownerTitle">
+          <div class="cardhead"><h2 id="ownerTitle">Organizer</h2></div>
+          <form id="unlockForm" class="row">
+            <div class="field grow"><label class="label" for="uPin">Organizer PIN</label><input type="password" id="uPin" maxlength="20" autocomplete="current-password"></div>
+            <button class="btn plain" type="submit" style="align-self:end">Unlock</button>
+          </form>
+          <form id="ownerForm" class="grid2" hidden>
+            <div class="field" style="grid-column:1/-1"><label class="label" for="oName">Race name</label><input type="text" id="oName" maxlength="60"></div>
+            <div class="field"><label class="label" for="oDist">Distance</label>
+              <select id="oDist"><option value="3.107">5K (3.1 mi)</option><option value="4">4 miles</option><option value="5">5 miles</option><option value="6.214">10K (6.2 mi)</option><option value="1">1 mile</option></select></div>
+            <div class="field"><label class="label" for="oStart">Start time</label><input type="datetime-local" id="oStart"></div>
+            <div class="row" style="grid-column:1/-1">
+              <button class="btn alt" type="submit">Save settings</button>
+              <button class="btn" type="button" id="bStartAll">Start everyone now</button>
+            </div>
+          </form>
+          <div class="status" id="ownerStatus"></div>
+        </section>
+
+        <section class="card" aria-labelledby="cheerTitle">
+          <div class="cardhead"><h2 id="cheerTitle">Cheer wall</h2><span class="count" id="cheerCount"></span></div>
+          <form id="cheerForm" style="display:grid; gap:10px">
+            <div class="chips" id="chips">
+              <button type="button" class="chip">Gobble gobble, go go go!</button>
+              <button type="button" class="chip">Run like the pie is getting cold!</button>
+              <button type="button" class="chip">Legs of steel, heart of gravy</button>
+              <button type="button" class="chip">So proud of you!</button>
+            </div>
+            <div class="field"><label class="label" for="cMsg">Your cheer</label><textarea id="cMsg" maxlength="160" placeholder="Type something to keep those legs moving"></textarea></div>
+            <div class="row">
+              <div class="field grow"><label class="label" for="cTo">For</label><select id="cTo"><option value="">The whole flock</option></select></div>
+              <div class="field grow"><label class="label" for="cFrom">From</label><input type="text" id="cFrom" maxlength="30" placeholder="Aunt Linda"></div>
+            </div>
+            <div class="row"><button class="btn" type="submit" id="cSend">Send cheer</button><div class="status" id="cStatus" role="status"></div></div>
+          </form>
+          <ul class="feed" id="feed"></ul>
+          <p class="empty" id="feedEmpty">No cheers yet. Be the first!</p>
+        </section>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite"><div class="t1" id="toastFrom"></div><div class="t2" id="toastMsg"></div></div>
+<canvas id="confetti" aria-hidden="true"></canvas>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyBvnWPGbNT8Qa473kS2Pkp5ag775gSUlA0",
+  authDomain: "turkey-trot-71f9d.firebaseapp.com",
+  databaseURL: "https://turkey-trot-71f9d-default-rtdb.firebaseio.com",
+  projectId: "turkey-trot-71f9d",
+  storageBucket: "turkey-trot-71f9d.firebasestorage.app",
+  messagingSenderId: "479897590604",
+  appId: "1:479897590604:web:ce3037a78288b40e24cde9"
+};
+
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const NS = "http://www.w3.org/2000/svg";
+  const PALETTE = ["#ff7a1a", "#d7263d", "#2b7fd4", "#2f9e62", "#8e44ad", "#e0a800"];
+  const MILE = 1609.344;
+  const LAKEFRONT = [43.0441, -87.8965]; // Veterans Park area
+  const SETTINGS_DEFAULT = { name: "Milwaukee lakefront · Thanksgiving 2026", distanceMi: 3.107, scheduledStart: Date.UTC(2026, 10, 26, 14, 0) };
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  let settings = { ...SETTINGS_DEFAULT }, runners = {}, cheers = {};
+  let uid = null, isAdmin = false, offset = 0;
+  let firstCheers = true, seen = new Set(), prevFinished = new Set(), firstRunners = true;
+  const now = () => Date.now() + offset;
+
+  // ---------- helpers ----------
+  const pad = (n) => String(n).padStart(2, "0");
+  function fmtDur(sec) { sec = Math.max(0, Math.round(sec)); const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s = sec % 60; return h ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`; }
+  const fmtPace = (sec) => sec && isFinite(sec) ? `${Math.floor(sec / 60)}:${pad(Math.round(sec % 60) % 60)}` : "--";
+  const fmtClock = (ms) => new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  const distName = (d) => ({ 3.107: "5K", 6.214: "10K" }[d] || `${d} mile${d == 1 ? "" : "s"}`);
+  const parsePace = (s) => { const m = /^(\d{1,2}):(\d{2})$/.exec((s || "").trim()); return m ? +m[1] * 60 + +m[2] : null; };
+  const colorOf = (r) => PALETTE[Number.isInteger(r.c) && r.c >= 0 && r.c < PALETTE.length ? r.c : 0];
+  const nameOf = (r) => (typeof r.name === "string" && r.name.trim()) || "Runner";
+  const splitsOf = (r) => Array.isArray(r.splits) ? r.splits.filter((x) => typeof x === "number") : (r.splits && typeof r.splits === "object" ? Object.values(r.splits).filter((x) => typeof x === "number") : []);
+  function toLocalInput(ms) { if (!ms) return ""; const d = new Date(ms); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+  function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function ago(ms) { const s = Math.max(0, Math.round((now() - ms) / 1000)); return s < 60 ? `${s}s ago` : `${Math.round(s / 60)} min ago`; }
+  function hav(a, b) { const R = 6371000, r = Math.PI / 180, dLat = (b.lat - a.lat) * r, dLng = (b.lng - a.lng) * r; const x = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dLng / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(x)); }
+  function showBanner(t) { $("banner").textContent = t; $("banner").hidden = !t; }
+
+  function turkey(svg, color) {
+    svg.replaceChildren();
+    const add = (t, a) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); svg.append(e); };
+    [PALETTE[1], "#ffc93c", PALETTE[0], PALETTE[3], PALETTE[0], "#ffc93c", PALETTE[1]].forEach((f, i) => add("ellipse", { cx: 50, cy: 30, rx: 9, ry: 24, fill: f, stroke: "var(--edge)", "stroke-width": 3, transform: `rotate(${-75 + i * 25} 50 56)` }));
+    add("ellipse", { cx: 50, cy: 62, rx: 22, ry: 24, fill: color, stroke: "var(--edge)", "stroke-width": 3 });
+    add("circle", { cx: 50, cy: 38, r: 13, fill: color, stroke: "var(--edge)", "stroke-width": 3 });
+    add("circle", { cx: 45, cy: 35, r: 2.6, fill: "var(--edge)" }); add("circle", { cx: 55, cy: 35, r: 2.6, fill: "var(--edge)" });
+    add("path", { d: "M46 41 L54 41 L50 47 Z", fill: "#ffc93c", stroke: "var(--edge)", "stroke-width": 2, "stroke-linejoin": "round" });
+    add("path", { d: "M54 44 q4 4 1 9", fill: "none", stroke: "#d7263d", "stroke-width": 3.5, "stroke-linecap": "round" });
+    add("path", { d: "M42 85 l-4 10 M58 85 l4 10", stroke: "var(--edge)", "stroke-width": 3.5, "stroke-linecap": "round" });
+  }
+  turkey($("mascot"), PALETTE[0]);
+
+  // ---------- estimate ----------
+  const fresh = (r) => r.pos && typeof r.pos.t === "number" && now() - r.pos.t < 120000;
+  function estimate(r) {
+    const D = settings.distanceMi, sp = splitsOf(r), goal = r.goalPace || 600, t = now();
+    if (!r.startedAt) return { dist: 0, pace: goal, state: "pre" };
+    if (r.finishedAt) { const s = (r.finishedAt - r.startedAt) / 1000; return { dist: D, pace: s / D, state: "done", total: s }; }
+    const elapsed = (t - r.startedAt) / 1000;
+    const gpsMi = (r.gpsDist || 0) / MILE;
+    if (gpsMi > 0.15) {
+      const pace = elapsed / gpsMi;
+      return { dist: Math.min(Math.max(gpsMi, sp.length), D - 0.01), pace, state: "live", src: "gps", eta: r.startedAt + D * pace * 1000 };
+    }
+    const lastAt = sp.length ? sp[sp.length - 1] : r.startedAt;
+    const pace = sp.length ? (lastAt - r.startedAt) / 1000 / sp.length : goal;
+    return { dist: Math.min(sp.length + (t - lastAt) / 1000 / pace, D - 0.02), pace, state: "live", src: sp.length ? "taps" : "goal", eta: lastAt + (D - sp.length) * pace * 1000 };
+  }
+  const sorted = () => Object.entries(runners).sort((a, b) => (a[1].joinedAt || 0) - (b[1].joinedAt || 0));
+  const mine = () => (uid && runners[uid]) || null;
+
+  // ---------- race id ----------
+  const params = new URLSearchParams(location.search);
+  const RACE = (params.get("r") || "").replace(/[^a-z0-9]/gi, "").slice(0, 24);
+
+  // ---------- firebase ----------
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+  const auth = firebase.auth();
+  db.ref(".info/serverTimeOffset").on("value", (s) => { offset = s.val() || 0; });
+
+  auth.onAuthStateChanged((u) => {
+    if (!u) return;
+    uid = u.uid;
+    if (RACE) startRace(); else startLanding();
+  });
+  auth.signInAnonymously().catch((e) => showBanner("Couldn't connect to the race server. Check your internet and reload. (" + (e.code || "error") + ")"));
+
+  // ---------- landing ----------
+  function startLanding() {
+    $("landing").hidden = false; $("clockRow").hidden = true;
+    $("heroSub").textContent = "Set up a race page for your runners and family.";
+    try { const last = localStorage.getItem("trot-last"); if (last) { $("recent").hidden = false; $("recentLink").href = "?r=" + encodeURIComponent(last); } } catch {}
+  }
+  $("createForm").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const pin = $("nPin").value.trim(), st = $("createStatus");
+    if (pin.length < 4) { st.className = "status err"; st.textContent = "Pick a PIN with at least 4 characters."; return; }
+    const key = Array.from(crypto.getRandomValues(new Uint8Array(10)), (b) => "abcdefghjkmnpqrstuvwxyz23456789"[b % 31]).join("");
+    st.className = "status"; st.textContent = "Creating your race…";
+    try {
+      await db.ref(`pins/${key}`).set(pin);
+      await db.ref(`admins/${key}/${uid}`).set(pin);
+      await db.ref(`races/${key}/settings`).set({ name: $("nName").value.trim() || SETTINGS_DEFAULT.name, distanceMi: +$("nDist").value, scheduledStart: Date.parse($("nStart").value) || null, createdAt: firebase.database.ServerValue.TIMESTAMP });
+      try { localStorage.setItem("trot-last", key); } catch {}
+      location.search = "?r=" + key;
+    } catch (e) { st.className = "status err"; st.textContent = "Couldn't create the race (" + (e.code || e.message) + "). Check the database rules were published."; }
+  });
+
+  // ---------- race page ----------
+  let map, markers = {}, fitted = false;
+  function startRace() {
+    $("racePage").hidden = false;
+    try { localStorage.setItem("trot-last", RACE); } catch {}
+    $("shareUrl").value = location.origin + location.pathname + "?r=" + RACE;
+    try { $("cFrom").value = localStorage.getItem("trot-from") || ""; } catch {}
+
+    map = L.map("map", { zoomControl: true, scrollWheelZoom: false }).setView(LAKEFRONT, 14);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' }).addTo(map);
+
+    const base = `races/${RACE}`;
+    let loaded = false;
+    const timer = setTimeout(() => { if (!loaded) showBanner("Can't reach the race yet. Check the link, or wait for your connection to come back."); }, 10000);
+
+    db.ref(`${base}/settings`).on("value", (s) => {
+      loaded = true; clearTimeout(timer);
+      if (!s.exists()) { showBanner("This race link doesn't match a race. Double-check the link you were sent."); return; }
+      showBanner("");
+      settings = { ...SETTINGS_DEFAULT, ...s.val() };
+      if (isAdmin && !$("ownerForm").contains(document.activeElement)) fillOwner();
+      render();
+    }, (e) => showBanner("Can't open this race (" + (e.code || "error") + ")."));
+
+    db.ref(`${base}/runners`).on("value", (s) => {
+      const hadMine = !!mine();
+      runners = s.val() || {};
+      const fin = new Set(Object.entries(runners).filter(([, r]) => r.finishedAt).map(([id]) => id));
+      if (!firstRunners) for (const id of fin) if (!prevFinished.has(id)) { toast("Finish line!", `${nameOf(runners[id])} just finished!`); burst(); }
+      prevFinished = fin; firstRunners = false;
+      if (!hadMine && mine()) fillMine();
+      if (hadMine && !mine()) stopGps();
+      render(); renderCheers();
+    });
+
+    db.ref(`${base}/cheers`).limitToLast(150).on("value", (s) => { cheers = s.val() || {}; renderCheers(); });
+
+    db.ref(`admins/${RACE}/${uid}`).once("value").then((s) => { if (s.exists()) setAdmin(); }).catch(() => {});
+
+    render(); setInterval(render, 1000);
+  }
+
+  // ---------- render ----------
+  function render() {
+    if (!RACE) return;
+    const t = now(), list = sorted(), D = settings.distanceMi;
+    $("raceName").textContent = settings.name || SETTINGS_DEFAULT.name;
+    $("distLabel").textContent = distName(D);
+    const ests = list.map(([id, r]) => [id, r, estimate(r)]);
+    const started = ests.filter((x) => x[1].startedAt);
+    const allDone = ests.length && ests.every((x) => x[2].state === "done");
+    if (!started.length) {
+      const s = settings.scheduledStart;
+      if (s && s > t) { $("clockLabel").textContent = "Starts in"; $("clock").textContent = fmtDur((s - t) / 1000); $("clockSub").textContent = new Date(s).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" }); }
+      else { $("clockLabel").textContent = "Waiting for the gun"; $("clock").textContent = "0:00"; $("clockSub").textContent = s ? `Planned ${fmtClock(s)}` : ""; }
+      $("mapTag").className = "tag"; $("mapTag").textContent = "Before the start";
+    } else if (allDone) {
+      const last = Math.max(...ests.map((x) => x[1].finishedAt)), first = Math.min(...started.map((x) => x[1].startedAt));
+      $("clockLabel").textContent = "Everyone's in!"; $("clock").textContent = fmtDur((last - first) / 1000); $("clockSub").textContent = "Pie time";
+      $("mapTag").className = "tag done"; $("mapTag").textContent = "All finished";
+    } else {
+      const first = Math.min(...started.map((x) => x[1].startedAt));
+      $("clockLabel").textContent = "Race time"; $("clock").textContent = fmtDur((t - first) / 1000); $("clockSub").textContent = `Gun at ${fmtClock(first)}`;
+      $("mapTag").className = "tag live"; $("mapTag").textContent = "Live";
+    }
+    $("heroSub").textContent = list.length ? `${list.length} runner${list.length === 1 ? "" : "s"} in the flock. Send them some cheers!` : "Follow the flock and send them cheers.";
+    renderMap(ests); renderPack(ests); renderMine(); renderTargets();
+  }
+
+  function renderMap(ests) {
+    if (!map) return;
+    const seenIds = new Set();
+    for (const [id, r] of ests) {
+      if (!r.pos || typeof r.pos.lat !== "number") continue;
+      seenIds.add(id);
+      const stale = !fresh(r);
+      const key = `${colorOf(r)}|${nameOf(r)}|${stale}`;
+      let m = markers[id];
+      if (!m) {
+        m = markers[id] = L.marker([r.pos.lat, r.pos.lng], { keyboard: false }).addTo(map);
+        m.bindTooltip("", { direction: "top", offset: [0, -16] });
+      }
+      if (m._key !== key) {
+        const div = document.createElement("div"); div.className = "pin" + (stale ? " stale" : ""); div.style.background = colorOf(r); div.textContent = nameOf(r).charAt(0).toUpperCase();
+        m.setIcon(L.divIcon({ className: "", html: div, iconSize: [34, 34], iconAnchor: [17, 17] }));
+        m._key = key;
+      }
+      m.setLatLng([r.pos.lat, r.pos.lng]);
+      m.setTooltipContent(`${nameOf(r)} · ${ago(r.pos.t)}`.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`));
+    }
+    for (const id of Object.keys(markers)) if (!seenIds.has(id)) { map.removeLayer(markers[id]); delete markers[id]; }
+    if (!fitted && Object.keys(markers).length) { fitAll(); fitted = true; }
+  }
+  function fitAll() {
+    const pts = Object.values(markers).map((m) => m.getLatLng());
+    if (!pts.length) { map.setView(LAKEFRONT, 14); return; }
+    if (pts.length === 1) map.setView(pts[0], 15); else map.fitBounds(L.latLngBounds(pts).pad(0.3), { maxZoom: 16 });
+  }
+  $("fitBtn").onclick = () => map && fitAll();
+
+  function renderPack(ests) {
+    const pack = $("pack"); pack.replaceChildren();
+    if (!ests.length) { pack.append(el("p", "empty", "No runners yet. Runners, open this page on your phone and tap \"I'm running\".")); return; }
+    for (const [id, r, e] of ests) {
+      const card = el("div", "runner");
+      const svg = document.createElementNS(NS, "svg"); svg.setAttribute("viewBox", "0 0 100 100"); svg.setAttribute("class", "turkey"); svg.setAttribute("aria-hidden", "true"); turkey(svg, colorOf(r));
+      const nm = el("div", "nm", nameOf(r));
+      if (r.bib) nm.append(el("span", "bib", `#${String(r.bib)}`));
+      nm.append(el("span", "tag" + (e.state === "live" ? " live" : e.state === "done" ? " done" : ""), { pre: "Not started", live: "Running", done: "Finished" }[e.state]));
+      if (r.pos && e.state !== "done") nm.append(el("span", "tag " + (fresh(r) ? "gps" : "stale"), fresh(r) ? "GPS live" : `Seen ${ago(r.pos.t)}`));
+      const nums = el("div", "nums");
+      const stat = (v, u) => { const s = el("span"); s.append(el("b", null, v), el("small", null, u)); return s; };
+      if (e.state === "done") nums.append(stat(fmtDur(e.total), "final"), stat(fmtPace(e.pace), "/mi avg"));
+      else if (e.state === "live") nums.append(stat(e.dist.toFixed(2), e.src === "gps" ? "mi" : "mi (est.)"), stat(fmtPace(e.pace), e.src === "goal" ? "/mi goal" : "/mi so far"), stat(fmtClock(e.eta), "finish"));
+      else nums.append(stat(fmtPace(e.pace), "/mi goal"), stat(settings.scheduledStart ? fmtClock(settings.scheduledStart + settings.distanceMi * e.pace * 1000) : "--", "finish"));
+      const extra = el("div", "extra");
+      const track = el("div", "track"); const fill = el("i"); fill.style.width = `${Math.min(100, e.dist / settings.distanceMi * 100)}%`; fill.style.background = colorOf(r); track.append(fill); extra.append(track);
+      const sp = splitsOf(r);
+      if (sp.length || r.finishedAt) {
+        const row = el("div", "splits"); let prev = r.startedAt;
+        sp.forEach((at, i) => { row.append(el("span", null, `M${i + 1} ${fmtDur((at - prev) / 1000)}`)); prev = at; });
+        if (r.finishedAt) row.append(el("span", null, `Finish ${fmtDur((r.finishedAt - prev) / 1000)}`));
+        extra.append(row);
+      }
+      if (r.spot) { const s = el("div"); s.style.fontWeight = 700; s.append(el("b", null, "Look for: "), document.createTextNode(String(r.spot))); extra.append(s); }
+      const actions = el("div", "row");
+      if (r.pos && map) { const b = el("button", "linkbtn", "Find on map"); b.type = "button"; b.onclick = () => { map.setView([r.pos.lat, r.pos.lng], 16); $("map").scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "center" }); }; actions.append(b); }
+      if (isAdmin && id !== uid) { const rm = el("button", "linkbtn", "Remove from flock"); rm.type = "button"; rm.onclick = () => confirmTap("rm" + id, rm, "Tap again to remove", () => db.ref(`races/${RACE}/runners/${id}`).remove()); actions.append(rm); }
+      if (actions.childNodes.length) extra.append(actions);
+      card.append(svg, nm, nums, extra); pack.append(card);
+    }
+  }
+
+  // ---------- two-tap confirm ----------
+  let armed = null, armTimer = null;
+  function confirmTap(key, btn, label, fn) {
+    if (armed === key) { armed = null; clearTimeout(armTimer); fn(); return; }
+    armed = key; btn.textContent = label; clearTimeout(armTimer);
+    armTimer = setTimeout(() => { armed = null; render(); renderOwnerButtons(); }, 3500);
+  }
+
+  // ---------- my race ----------
+  function renderMine() {
+    const r = mine();
+    $("joinCard").hidden = !uid || !!r;
+    $("myCard").hidden = !r;
+    if (!r) return;
+    const sp = splitsOf(r), D = settings.distanceMi, next = sp.length + 1;
+    $("bStart").disabled = !!r.startedAt;
+    $("bMile").disabled = !r.startedAt || !!r.finishedAt || next >= D;
+    if (armed !== "mile") $("bMile").textContent = next < D ? `Mile ${next}` : "Mile —";
+    $("bFinish").disabled = !r.startedAt || !!r.finishedAt;
+    $("bUndo").disabled = !r.startedAt;
+    if (armed !== "undo") $("bUndo").textContent = "Undo";
+    if (armed !== "leave") $("bLeave").textContent = "Leave the flock";
+  }
+  const myRef = () => db.ref(`races/${RACE}/runners/${uid}`);
+  async function saveMine(patch, okMsg) {
+    const st = $("myStatus"); st.className = "status"; st.textContent = "Saving…";
+    try { await myRef().update(patch); st.textContent = okMsg || "Saved!"; }
+    catch (e) { st.className = "status err"; st.textContent = "Didn't save. Check your signal and tap again."; }
+  }
+  $("bStart").onclick = () => { gpsDist = 0; lastKept = null; saveMine({ startedAt: now(), finishedAt: null, splits: null, gpsDist: 0 }, "You're off! Miles log from GPS, or tap them."); if (!watchId) startGps(); };
+  $("bMile").onclick = () => { const sp = [...splitsOf(mine()), now()]; saveMine({ splits: sp }, `Mile ${sp.length} done. Keep trotting!`); };
+  $("bFinish").onclick = () => { saveMine({ finishedAt: now() }, "You did it! Go find the pie."); burst(); setTimeout(stopGps, 15000); };
+  $("bUndo").onclick = () => confirmTap("undo", $("bUndo"), "Tap to confirm", () => {
+    const r = mine(), sp = splitsOf(r);
+    if (r.finishedAt) saveMine({ finishedAt: null }, "Finish undone.");
+    else if (sp.length) saveMine({ splits: sp.slice(0, -1) }, "Last mile undone.");
+    else saveMine({ startedAt: null, gpsDist: 0 }, "Start undone.");
+  });
+  $("bLeave").onclick = () => confirmTap("leave", $("bLeave"), "Tap again to leave", () => { stopGps(); myRef().remove(); });
+
+  let pickedColor = 0;
+  function renderColors() {
+    const box = $("mColors"); box.replaceChildren();
+    PALETTE.forEach((c, i) => { const b = el("button"); b.type = "button"; b.style.background = c; b.setAttribute("aria-label", `Color ${i + 1}`); b.setAttribute("aria-pressed", String(i === pickedColor)); b.onclick = () => { pickedColor = i; renderColors(); }; box.append(b); });
+  }
+  function fillMine() {
+    const r = mine(); if (!r) return;
+    $("mName").value = r.name || ""; $("mBib").value = r.bib || ""; $("mPace").value = fmtPace(r.goalPace || 600); $("mSpot").value = r.spot || "";
+    pickedColor = Number.isInteger(r.c) ? r.c : 0; renderColors();
+    gpsDist = r.gpsDist || 0;
+  }
+  $("myForm").addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    const pace = parsePace($("mPace").value);
+    if (!pace) { $("myStatus").className = "status err"; $("myStatus").textContent = "Goal pace should look like 9:30."; return; }
+    saveMine({ name: $("mName").value.trim() || nameOf(mine()), bib: $("mBib").value.trim(), goalPace: pace, spot: $("mSpot").value.trim(), c: pickedColor }, "Details saved!");
+  });
+  $("joinForm").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const name = $("jName").value.trim(); if (!name) return;
+    const used = new Set(Object.values(runners).map((r) => r.c));
+    const c = PALETTE.findIndex((_, i) => !used.has(i));
+    $("joinStatus").textContent = "Adding you…";
+    try { await myRef().set({ name, bib: "", spot: "", c: c < 0 ? 0 : c, goalPace: 600, joinedAt: now(), gpsDist: 0 }); $("joinStatus").textContent = ""; burst(30); }
+    catch (e) { $("joinStatus").className = "status err"; $("joinStatus").textContent = "Couldn't add you. Try again."; }
+  });
+
+  // ---------- GPS ----------
+  const GPS_HELP = $("gpsHelp").textContent;
+  let watchId = null, wakeLock = null, gpsDist = 0, lastKept = null, lastSent = 0, lastFix = null;
+  async function keepAwake() { try { wakeLock = await navigator.wakeLock.request("screen"); } catch {} }
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && watchId != null) keepAwake(); });
+  function setGpsUi(state, text) {
+    const tag = $("gpsTag"); tag.className = "tag" + (state === "on" ? " gps" : state === "warn" ? " stale" : "");
+    tag.textContent = text;
+    $("bGps").textContent = watchId != null ? "Stop sharing location" : "Share my location";
+    $("bGps").className = "btn " + (watchId != null ? "plain" : "go");
+  }
+  function startGps() {
+    if (!("geolocation" in navigator)) { setGpsUi("warn", "Not supported"); return; }
+    if (watchId != null) return;
+    lastSent = 0; lastKept = null;
+    watchId = navigator.geolocation.watchPosition(onFix, onGpsErr, { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 });
+    keepAwake(); setGpsUi("warn", "Finding you…"); $("gpsHelp").textContent = GPS_HELP;
+  }
+  function stopGps() {
+    if (watchId != null) navigator.geolocation.clearWatch(watchId);
+    watchId = null; if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
+    setGpsUi("off", "Off");
+  }
+  $("bGps").onclick = () => (watchId != null ? stopGps() : startGps());
+  function onGpsErr(e) {
+    if (e.code === 1) { stopGps(); setGpsUi("warn", "Blocked"); $("gpsHelp").textContent = "Location is blocked for this site. On iPhone: Settings → Privacy & Security → Location Services → Safari Websites → While Using. Then reload and try again."; }
+    else setGpsUi("warn", "Weak signal");
+  }
+  function onFix(p) {
+    const r = mine(); if (!r) return;
+    const { latitude: lat, longitude: lng, accuracy: acc } = p.coords, t = now();
+    lastFix = t;
+    setGpsUi(acc <= 40 ? "on" : "warn", acc <= 40 ? `On · ±${Math.round(acc)} m` : `Rough fix · ±${Math.round(acc)} m`);
+    const patch = {};
+    const running = r.startedAt && !r.finishedAt;
+    if (running && acc <= 40) {
+      if (lastKept && t - lastKept.t < 60000) {
+        const d = hav(lastKept, { lat, lng }), dt = Math.max(1, (t - lastKept.t) / 1000);
+        if (d / dt > 9) { /* GPS jump, ignore */ }
+        else if (d >= Math.max(6, acc * 0.5)) { gpsDist += d; lastKept = { lat, lng, t }; patch.gpsDist = Math.round(gpsDist); }
+      } else lastKept = { lat, lng, t };
+      const sp = splitsOf(r), mi = gpsDist / MILE;
+      if (mi >= sp.length + 1 && sp.length + 1 < settings.distanceMi) {
+        patch.splits = [...sp, t]; toast("Mile logged!", `Mile ${sp.length + 1} done. Keep going!`);
+      }
+    }
+    if (t - lastSent >= 6000 || patch.splits) {
+      patch.pos = { lat: +lat.toFixed(5), lng: +lng.toFixed(5), acc: Math.round(acc), t };
+      lastSent = t;
+      myRef().update(patch).catch(() => setGpsUi("warn", "Can't send, no signal"));
+    }
+  }
+  setInterval(() => { if (watchId != null && lastFix && now() - lastFix > 45000) setGpsUi("warn", "No GPS for a bit"); }, 5000);
+
+  // ---------- organizer ----------
+  function setAdmin() { isAdmin = true; $("unlockForm").hidden = true; $("ownerForm").hidden = false; fillOwner(); render(); }
+  function fillOwner() { $("oName").value = settings.name || ""; $("oDist").value = String(settings.distanceMi); $("oStart").value = toLocalInput(settings.scheduledStart); }
+  function renderOwnerButtons() { if (armed !== "startall") $("bStartAll").textContent = "Start everyone now"; }
+  $("unlockForm").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const pin = $("uPin").value.trim(); if (!pin) return;
+    $("ownerStatus").className = "status"; $("ownerStatus").textContent = "Checking…";
+    try { await db.ref(`admins/${RACE}/${uid}`).set(pin); $("ownerStatus").textContent = "Unlocked on this device."; setAdmin(); }
+    catch { $("ownerStatus").className = "status err"; $("ownerStatus").textContent = "That PIN didn't match."; }
+  });
+  $("ownerForm").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    try { await db.ref(`races/${RACE}/settings`).update({ name: $("oName").value.trim() || SETTINGS_DEFAULT.name, distanceMi: +$("oDist").value, scheduledStart: Date.parse($("oStart").value) || null }); $("ownerStatus").className = "status"; $("ownerStatus").textContent = "Settings saved."; }
+    catch { $("ownerStatus").className = "status err"; $("ownerStatus").textContent = "Didn't save. Try again."; }
+  });
+  $("bStartAll").onclick = () => confirmTap("startall", $("bStartAll"), "Tap again: GO!", async () => {
+    $("bStartAll").textContent = "Start everyone now";
+    const t = now(), updates = {}; let n = 0;
+    for (const [id, r] of Object.entries(runners)) if (!r.startedAt) { updates[`${id}/startedAt`] = t; updates[`${id}/finishedAt`] = null; updates[`${id}/splits`] = null; updates[`${id}/gpsDist`] = 0; n++; }
+    if (!n) { $("ownerStatus").textContent = "Everyone had already started."; return; }
+    try { await db.ref(`races/${RACE}/runners`).update(updates); $("ownerStatus").textContent = `Started ${n} runner${n === 1 ? "" : "s"}. Go go go!`; burst(); if (updates[`${uid}/startedAt`]) { gpsDist = 0; lastKept = null; if (watchId == null) startGps(); } }
+    catch { $("ownerStatus").className = "status err"; $("ownerStatus").textContent = "Couldn't start everyone. Try again."; }
+  });
+
+  // ---------- share ----------
+  $("copyBtn").onclick = async () => {
+    try { await navigator.clipboard.writeText($("shareUrl").value); $("copyBtn").textContent = "Copied!"; }
+    catch { $("shareUrl").select(); $("copyBtn").textContent = "Press copy"; }
+    setTimeout(() => ($("copyBtn").textContent = "Copy link"), 2000);
+  };
+
+  // ---------- cheers ----------
+  $("chips").addEventListener("click", (ev) => { const b = ev.target.closest(".chip"); if (b) { $("cMsg").value = b.textContent; $("cMsg").focus(); } });
+  function renderTargets() {
+    const sel = $("cTo"), cur = sel.value, list = sorted();
+    const key = list.map(([id, r]) => id + nameOf(r)).join("|");
+    if (sel.dataset.key === key) return; sel.dataset.key = key;
+    const first = el("option", null, "The whole flock"); first.value = ""; sel.replaceChildren(first);
+    for (const [id, r] of list) { const o = el("option", null, nameOf(r)); o.value = id; sel.append(o); }
+    sel.value = runners[cur] ? cur : "";
+  }
+  $("cheerForm").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const text = $("cMsg").value.trim(), from = $("cFrom").value.trim(), to = $("cTo").value, st = $("cStatus");
+    st.className = "status";
+    if (!text) { st.textContent = "Write a cheer or tap a quick one."; return; }
+    try { localStorage.setItem("trot-from", from); } catch {}
+    $("cSend").disabled = true; st.textContent = "Sending…";
+    try { await db.ref(`races/${RACE}/cheers`).push({ uid, text, from, to, t: now() }); $("cMsg").value = ""; st.textContent = "Cheer sent!"; burst(40); }
+    catch { st.className = "status err"; st.textContent = "Couldn't send. Try again."; }
+    $("cSend").disabled = false;
+  });
+  let toastTimer = null;
+  function toast(head, msg) { $("toastFrom").textContent = head; $("toastMsg").textContent = msg; $("toast").classList.add("show"); clearTimeout(toastTimer); toastTimer = setTimeout(() => $("toast").classList.remove("show"), 5500); }
+  function renderCheers() {
+    const all = Object.entries(cheers).map(([k, c]) => ({ k, ...c })).filter((c) => typeof c.text === "string").sort((a, b) => b.t - a.t);
+    const feed = $("feed"); feed.replaceChildren(); const newOnes = [];
+    for (const c of all) {
+      const li = el("li"); if (!firstCheers && !seen.has(c.k)) { li.className = "fresh"; newOnes.push(c); } seen.add(c.k);
+      const blip = el("span", "blip"); if (c.to && runners[c.to]) blip.style.background = colorOf(runners[c.to]);
+      const b = el("div", "bubble"); b.append(el("div", "msg", c.text));
+      const who = el("div", "who");
+      who.append(el("span", null, `${c.from || "Someone"}${c.to && runners[c.to] ? " → " + nameOf(runners[c.to]) : ""} · ${fmtClock(c.t)}`));
+      if (isAdmin || c.uid === uid) { const rm = el("button", "linkbtn", "Remove"); rm.type = "button"; rm.onclick = () => db.ref(`races/${RACE}/cheers/${c.k}`).remove().catch(() => {}); who.append(rm); }
+      b.append(who); li.append(blip, b); feed.append(li);
+    }
+    $("feedEmpty").hidden = all.length > 0;
+    $("cheerCount").textContent = all.length ? `${all.length} cheer${all.length === 1 ? "" : "s"}` : "";
+    const other = newOnes.filter((c) => c.uid !== uid);
+    if (other.length) {
+      const c = other.find((x) => x.to === uid) || other[0];
+      toast(c.to === uid ? `For you, from ${c.from || "someone"}` : `Cheer from ${c.from || "someone"}`, c.text);
+      if (c.to === uid) burst(60);
+    }
+    firstCheers = false;
+  }
+
+  // ---------- confetti ----------
+  const cv = $("confetti"), cx = cv.getContext("2d"); let parts = [], raf = null;
+  function burst(n = 120) {
+    if (reduced) return;
+    const dpr = devicePixelRatio || 1; cv.width = innerWidth * dpr; cv.height = innerHeight * dpr;
+    for (let i = 0; i < n; i++) parts.push({ x: cv.width / 2, y: cv.height * 0.35, vx: (Math.random() - .5) * 26 * dpr, vy: (-Math.random() * 18 - 6) * dpr, s: (6 + Math.random() * 8) * dpr, r: Math.random() * 6, vr: Math.random() * .3 - .15, c: PALETTE[i % PALETTE.length], life: 0, g: .5 * dpr });
+    if (!raf) raf = requestAnimationFrame(tick);
+  }
+  function tick() {
+    cx.clearRect(0, 0, cv.width, cv.height);
+    parts = parts.filter((p) => p.life < 160 && p.y < cv.height + 40);
+    for (const p of parts) { p.life++; p.vy += p.g; p.vx *= .985; p.x += p.vx; p.y += p.vy; p.r += p.vr; cx.save(); cx.translate(p.x, p.y); cx.rotate(p.r); cx.fillStyle = p.c; cx.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2); cx.restore(); }
+    raf = parts.length ? requestAnimationFrame(tick) : (cx.clearRect(0, 0, cv.width, cv.height), null);
+  }
+})();
+</script>
+</body>
+</html>
